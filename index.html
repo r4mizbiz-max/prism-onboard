@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Set Up Your AI Receptionist — Prism</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --accent: #7B6EF6;
+    --accent2: #5EEAD4;
+    --red: #FF4D4D;
+    --surface: #111111;
+    --surface2: #161616;
+    --border: rgba(255,255,255,0.08);
+    --border-bright: rgba(255,255,255,0.14);
+    --text: #f0f0f0;
+    --dim: #999;
+    --muted: #666;
+    --faint: #444;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #080808; min-height: 100%; }
+  body {
+    background: #080808; color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 16px; line-height: 1.5;
+    min-height: 100vh; display: flex; flex-direction: column;
+    position: relative; overflow-x: hidden;
+  }
+
+  .bg-orb { position: fixed; width: 600px; height: 600px; background: radial-gradient(circle, rgba(123,110,246,0.07) 0%, transparent 70%); top: -150px; left: 50%; transform: translateX(-50%); pointer-events: none; z-index: 0; }
+  .bg-grid { position: fixed; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px); background-size: 60px 60px; mask-image: radial-gradient(ellipse at center, black 20%, transparent 75%); pointer-events: none; z-index: 0; }
+
+  .logo { position: fixed; top: 24px; left: 40px; display: flex; align-items: center; gap: 10px; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 16px; color: var(--text); text-decoration: none; z-index: 10; }
+  .logo-icon { width: 26px; height: 26px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+  .logo-icon svg { width: 14px; height: 14px; }
+
+  .progress-bar-wrap { position: fixed; top: 0; left: 0; right: 0; height: 3px; background: rgba(255,255,255,0.04); z-index: 100; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.5s cubic-bezier(0.4,0,0.2,1); width: 0%; }
+
+  .step-counter { position: fixed; top: 24px; right: 40px; font-size: 12px; color: var(--muted); font-family: 'Syne', sans-serif; font-weight: 600; z-index: 10; letter-spacing: 0.05em; }
+  .step-counter span { color: var(--text); }
+
+  main { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 100px 24px 80px; position: relative; z-index: 1; }
+
+  .invalid-state, .loading-screen, .mode-picker, .success-screen { text-align: center; max-width: 520px; }
+
+  .invalid-state h2, .mode-picker h2, .success-screen h2 { font-family: 'Syne', sans-serif; font-size: clamp(28px, 4vw, 36px); font-weight: 800; letter-spacing: -0.025em; margin-bottom: 12px; }
+  .invalid-state p, .mode-picker p, .success-screen p { color: var(--dim); font-size: 15px; line-height: 1.65; }
+  .invalid-state a, .mode-picker a, .success-screen a { color: var(--accent); text-decoration: none; }
+
+  .spinner { width: 48px; height: 48px; border: 2px solid rgba(123,110,246,0.1); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 24px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-screen p { color: var(--dim); font-size: 15px; }
+  .loading-screen .loading-status { font-size: 13px; color: var(--muted); margin-top: 8px; }
+
+  .form-wrap { max-width: 640px; width: 100%; }
+
+  .question-slide { display: none; animation: slideIn 0.4s cubic-bezier(0.4,0,0.2,1); }
+  .question-slide.active { display: block; }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+  .q-label { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .q-label::before { content: ''; width: 20px; height: 1px; background: var(--accent); display: block; }
+
+  h2 { font-family: 'Syne', sans-serif; font-weight: 800; font-size: clamp(26px, 4vw, 36px); letter-spacing: -0.025em; line-height: 1.15; margin-bottom: 10px; color: var(--text); }
+  .q-hint { font-size: 14px; color: var(--muted); margin-bottom: 32px; line-height: 1.5; }
+  .q-hint.mb-small { margin-bottom: 20px; }
+
+  .field {
+    width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px 20px; font-family: 'DM Sans', sans-serif; font-size: 16px; color: var(--text);
+    outline: none; transition: border-color 0.2s, box-shadow 0.2s; resize: none;
+  }
+  .field::placeholder { color: var(--faint); }
+  .field:focus { border-color: rgba(123,110,246,0.5); box-shadow: 0 0 0 4px rgba(123,110,246,0.08); }
+  .field.error { border-color: var(--red); box-shadow: 0 0 0 4px rgba(255,77,77,0.08); }
+  textarea.field { min-height: 130px; }
+
+  .field-group { margin-bottom: 16px; }
+
+  .choices { display: flex; flex-direction: column; gap: 10px; }
+  .choice-btn {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px 20px; display: flex; align-items: center; gap: 14px;
+    cursor: pointer; transition: border-color 0.15s, background 0.15s, transform 0.15s;
+    text-align: left; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px;
+  }
+  .choice-btn:hover { border-color: rgba(123,110,246,0.4); background: var(--surface2); transform: translateX(2px); }
+  .choice-btn.selected { border-color: var(--accent); background: rgba(123,110,246,0.08); }
+  .choice-icon { font-size: 22px; width: 32px; text-align: center; flex-shrink: 0; }
+  .choice-label { font-weight: 500; }
+  .choice-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* HOURS */
+  .hours-table { display: flex; flex-direction: column; gap: 8px; }
+  .hours-row {
+    display: grid; grid-template-columns: 96px 1fr 1fr 90px;
+    gap: 10px; align-items: center;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px;
+  }
+  .hours-day { font-weight: 500; font-size: 14px; color: var(--text); }
+  .hours-row input[type="time"] {
+    background: #0a0a0a; border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; width: 100%;
+    color-scheme: dark;
+  }
+  .hours-row input[type="time"]:disabled { opacity: 0.35; }
+  .hours-toggle {
+    background: rgba(123,110,246,0.1); border: 1px solid rgba(123,110,246,0.2);
+    border-radius: 8px; padding: 8px 12px; font-size: 12px; font-weight: 500;
+    color: var(--accent); cursor: pointer; transition: all 0.15s;
+  }
+  .hours-toggle.closed { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08); color: var(--muted); }
+  .hours-toggle:hover { transform: translateY(-1px); }
+
+  /* FAQs */
+  .faq-pairs { display: flex; flex-direction: column; gap: 14px; }
+  .faq-pair { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
+  .faq-pair input { width: 100%; background: #0a0a0a; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; margin-bottom: 8px; }
+  .faq-pair input:focus { border-color: rgba(123,110,246,0.4); }
+  .faq-pair textarea { width: 100%; background: #0a0a0a; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; min-height: 70px; resize: vertical; outline: none; }
+  .faq-pair textarea:focus { border-color: rgba(123,110,246,0.4); }
+  .faq-add {
+    background: transparent; border: 1px dashed rgba(255,255,255,0.15); border-radius: 10px;
+    padding: 12px; width: 100%; color: var(--muted); font-size: 13px; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; transition: all 0.15s;
+  }
+  .faq-add:hover { color: var(--accent); border-color: rgba(123,110,246,0.35); }
+
+  /* Buttons */
+  .btn-next, .btn-primary {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--accent); color: #fff; border: none;
+    padding: 16px 32px; border-radius: 12px;
+    font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .btn-next:hover, .btn-primary:hover { background: #6B5EE6; transform: translateY(-2px); box-shadow: 0 12px 32px rgba(123,110,246,0.3); }
+  .btn-next:disabled { opacity: 0.4; transform: none; box-shadow: none; cursor: not-allowed; }
+  .btn-next svg, .btn-primary svg { width: 18px; height: 18px; transition: transform 0.2s; }
+  .btn-next:hover svg, .btn-primary:hover svg { transform: translateX(3px); }
+
+  .btn-back {
+    background: none; border: none; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 14px;
+    cursor: pointer; padding: 0; display: inline-flex; align-items: center; gap: 6px; transition: color 0.2s;
+  }
+  .btn-back:hover { color: var(--text); }
+
+  .form-nav { margin-top: 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+
+  /* Mode picker */
+  .mode-picker { max-width: 640px; }
+  .mode-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 32px; }
+  .mode-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+    padding: 28px 24px; text-align: left; cursor: pointer; transition: all 0.2s;
+  }
+  .mode-card:hover { border-color: rgba(123,110,246,0.5); background: var(--surface2); transform: translateY(-2px); }
+  .mode-card h3 { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .mode-card .mode-desc { font-size: 13px; color: var(--dim); line-height: 1.5; margin-bottom: 16px; }
+  .mode-card .mode-meta { font-size: 11px; color: var(--accent2); letter-spacing: 0.05em; text-transform: uppercase; font-weight: 600; }
+  .mode-card .mode-emoji { font-size: 28px; margin-bottom: 12px; display: block; }
+  @media (max-width: 560px) { .mode-cards { grid-template-columns: 1fr; } }
+
+  /* Success */
+  .success-icon-wrap { width: 80px; height: 80px; background: rgba(94,234,212,0.1); border: 1px solid rgba(94,234,212,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 28px; }
+  .success-screen h2 span { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .phone-display {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: rgba(123,110,246,0.08); border: 1px solid rgba(123,110,246,0.25);
+    border-radius: 14px; padding: 14px 20px; margin: 20px 0;
+    font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700;
+    color: var(--accent);
+  }
+
+  .char-count { font-size: 11px; color: var(--muted); text-align: right; margin-top: 6px; }
+
+  .inline-error {
+    display: none; margin-top: 12px; padding: 10px 14px;
+    background: rgba(255,77,77,0.1); border: 1px solid rgba(255,77,77,0.25);
+    border-radius: 10px; font-size: 13px; color: #ff9999;
+  }
+  .inline-error.show { display: block; }
+
+  .voice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 560px) { .voice-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<div class="bg-orb"></div>
+<div class="bg-grid"></div>
+
+<div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+<div class="step-counter" id="stepCounter" style="display:none;">Step <span id="currentStep">1</span> of <span id="totalSteps">8</span></div>
+
+<a href="https://prism-business.com" class="logo">
+  <div class="logo-icon">
+    <svg viewBox="0 0 16 16" fill="none"><path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/><circle cx="8" cy="8" r="2" fill="white"/></svg>
+  </div>
+  Prism
+</a>
+
+<main>
+  <!-- INITIAL LOAD -->
+  <div class="loading-screen" id="loadingScreen">
+    <div class="spinner"></div>
+    <p>Validating your link...</p>
+    <div class="loading-status" id="loadingStatus">One moment</div>
+  </div>
+
+  <!-- INVALID TOKEN -->
+  <div class="invalid-state" id="invalidState" style="display:none;">
+    <h2>Link expired or invalid 🔒</h2>
+    <p>This setup link doesn't look right, or it's already been used. <br><a href="https://prism-business.com">Go to Prism</a> or <a href="mailto:hello@prism-business.com">contact us</a> and we'll sort it out.</p>
+  </div>
+
+  <!-- MODE PICKER -->
+  <div class="mode-picker" id="modePicker" style="display:none;">
+    <h2>Hey <span id="helloName">there</span> — let's set up your AI.</h2>
+    <p>How thorough do you want the setup? You can always tweak things later.</p>
+    <div class="mode-cards">
+      <div class="mode-card" data-mode="simple" role="button" tabindex="0">
+        <span class="mode-emoji">⚡</span>
+        <h3>Quick Setup</h3>
+        <p class="mode-desc">The essentials only. Good enough for most businesses. You can refine later.</p>
+        <div class="mode-meta">~3 minutes · 8 questions</div>
+      </div>
+      <div class="mode-card" data-mode="advanced" role="button" tabindex="0">
+        <span class="mode-emoji">🎯</span>
+        <h3>Full Setup</h3>
+        <p class="mode-desc">Per-day hours, pricing guidance, voice, escalation, FAQs. Sharpest AI.</p>
+        <div class="mode-meta">~5 minutes · 12 questions</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FORM -->
+  <div class="form-wrap" id="formWrap" style="display:none;"></div>
+
+  <!-- SUBMITTING -->
+  <div class="loading-screen" id="submittingScreen" style="display:none;">
+    <div class="spinner"></div>
+    <p>Setting up your AI receptionist...</p>
+    <div class="loading-status" id="submitStatus">Saving your setup</div>
+  </div>
+
+  <!-- SUCCESS -->
+  <div class="success-screen" id="successScreen" style="display:none;">
+    <div class="success-icon-wrap">
+      <svg width="36" height="36" viewBox="0 0 36 36" fill="none"><path d="M7 18L14.5 25.5L29 11" stroke="#5EEAD4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <h2>You're live.<br><span>Check your email.</span></h2>
+    <div class="phone-display" id="assignedPhone" style="display:none;">📞 <span id="phoneText"></span></div>
+    <p>We've provisioned your AI and emailed you the forwarding instructions. Forward your business line to the number above and your AI starts answering calls immediately.</p>
+    <p style="color: var(--muted); font-size: 13px; margin-top: 20px;">You can close this tab.</p>
+  </div>
+
+</main>
+
+<script>
+(function() {
+  // ===== CONFIG =====
+  var SUPABASE_URL = 'https://fsajjhlvlmyqxuvfeyvl.supabase.co';
+  var VALIDATE_URL = SUPABASE_URL + '/functions/v1/validate-onboarding-token';
+  var SUBMIT_URL = SUPABASE_URL + '/functions/v1/onboarding-submit';
+
+  var DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+  var state = {
+    token: null,
+    mode: null,
+    customerEmail: '',
+    businessName: '',
+    ownerName: '',
+    currentStep: 1,
+    totalSteps: 8,
+    answers: {
+      businessName: '',
+      ownerName: '',
+      servicesOffered: '',
+      summaryEmail: '',
+      voicePreference: 'friendly_female',
+      afterHoursBehavior: '',
+      bookingPreference: 'email',
+      pricingGuidance: '',
+      businessPhoneToForward: '',
+      areaCode: '',
+      escalationBehavior: 'message',
+      transferNumber: '',
+      faqs: [{ question: '', answer: '' }],
+      hours: {
+        Monday: { open: '08:00', close: '17:00' },
+        Tuesday: { open: '08:00', close: '17:00' },
+        Wednesday: { open: '08:00', close: '17:00' },
+        Thursday: { open: '08:00', close: '17:00' },
+        Friday: { open: '08:00', close: '17:00' },
+        Saturday: null,
+        Sunday: null
+      }
+    }
+  };
+
+  // ===== DOM helpers =====
+  function $(id) { return document.getElementById(id); }
+  function setProgress(step, total) {
+    var pct = Math.max(0, Math.min(100, ((step - 1) / total) * 100));
+    $('progressBar').style.width = pct + '%';
+    $('currentStep').textContent = step;
+    $('totalSteps').textContent = total;
+    $('stepCounter').style.display = 'block';
+  }
+  function hideProgress() { $('stepCounter').style.display = 'none'; $('progressBar').style.width = '0%'; }
+
+  // ===== Validate token on load =====
+  document.addEventListener('DOMContentLoaded', function() {
+    var params = new URLSearchParams(window.location.search);
+    state.token = params.get('token');
+
+    if (!state.token) {
+      window.location.replace('https://prism-business.com');
+      return;
+    }
+
+    fetch(VALIDATE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: state.token })
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      $('loadingScreen').style.display = 'none';
+      if (!data || !data.valid) {
+        $('invalidState').style.display = 'block';
+        return;
+      }
+      state.customerEmail = data.email || '';
+      state.businessName = data.businessName || '';
+      state.ownerName = data.ownerName || '';
+      state.answers.summaryEmail = state.customerEmail;
+      state.answers.businessName = state.businessName;
+      state.answers.ownerName = state.ownerName;
+      showModePicker();
+    }).catch(function() {
+      $('loadingScreen').style.display = 'none';
+      $('invalidState').style.display = 'block';
+    });
+  });
+
+  function showModePicker() {
+    var name = (state.ownerName || '').split(' ')[0] || 'there';
+    $('helloName').textContent = name;
+    $('modePicker').style.display = 'block';
+    document.querySelectorAll('[data-mode]').forEach(function(el) {
+      el.addEventListener('click', function() { startForm(el.getAttribute('data-mode')); });
+      el.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startForm(el.getAttribute('data-mode')); }
+      });
+    });
+  }
+
+  function startForm(mode) {
+    state.mode = mode;
+    $('modePicker').style.display = 'none';
+    state.totalSteps = (mode === 'advanced') ? 12 : 8;
+    state.currentStep = 1;
+    renderStep();
+    $('formWrap').style.display = 'block';
+  }
+
+  // ===== Steps =====
+  function simpleSteps() {
+    return ['businessName', 'ownerName', 'services', 'hours', 'afterHours', 'booking', 'voice', 'faqsSimple'];
+  }
+  function advancedSteps() {
+    return ['businessName', 'ownerName', 'businessPhone', 'services', 'pricing', 'hours', 'afterHours', 'booking', 'voice', 'escalation', 'faqsAdvanced', 'review'];
+  }
+  function currentStepKey() {
+    var seq = state.mode === 'advanced' ? advancedSteps() : simpleSteps();
+    return seq[state.currentStep - 1];
+  }
+
+  function renderStep() {
+    var total = state.totalSteps;
+    setProgress(state.currentStep, total);
+
+    var key = currentStepKey();
+    var html = '';
+
+    switch (key) {
+      case 'businessName': html = stepBusinessName(); break;
+      case 'ownerName': html = stepOwnerName(); break;
+      case 'businessPhone': html = stepBusinessPhone(); break;
+      case 'services': html = stepServices(); break;
+      case 'pricing': html = stepPricing(); break;
+      case 'hours': html = stepHours(); break;
+      case 'afterHours': html = stepAfterHours(); break;
+      case 'booking': html = stepBooking(); break;
+      case 'voice': html = stepVoice(); break;
+      case 'escalation': html = stepEscalation(); break;
+      case 'faqsSimple': html = stepFaqsSimple(); break;
+      case 'faqsAdvanced': html = stepFaqsAdvanced(); break;
+      case 'review': html = stepReview(); break;
+    }
+
+    $('formWrap').innerHTML = html;
+    wireStep(key);
+    // Focus first field
+    var first = $('formWrap').querySelector('input, textarea, select, button.choice-btn');
+    if (first && first.tagName !== 'BUTTON') setTimeout(function() { first.focus(); }, 120);
+  }
+
+  function navButtons(canBack, submitLabel) {
+    var backBtn = canBack ? '<button type="button" class="btn-back" data-back>← Back</button>' : '';
+    var label = submitLabel || 'Continue';
+    return (
+      '<div class="form-nav">' +
+        '<button type="button" class="btn-next" data-next>' + label +
+          '<svg viewBox="0 0 18 18" fill="none"><path d="M3.75 9H14.25M14.25 9L9.75 4.5M14.25 9L9.75 13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+        '</button>' +
+        backBtn +
+      '</div>' +
+      '<div class="inline-error" id="inlineError"></div>'
+    );
+  }
+
+  // Step renderers
+  function stepBusinessName() {
+    return (
+      '<div class="question-slide active">' +
+        '<div class="q-label">Getting started</div>' +
+        '<h2>What\'s your business called?</h2>' +
+        '<p class="q-hint">This is how your AI receptionist will refer to your business on every call.</p>' +
+        '<input type="text" class="field" id="f_businessName" placeholder="e.g. Smith\'s Plumbing" maxlength="80" value="' + escapeHtml(state.answers.businessName) + '">' +
+        navButtons(false) +
+      '</div>'
+    );
+  }
+  function stepOwnerName() {
+    return (
+      '<div class="question-slide active">' +
+        '<div class="q-label">Personal touch</div>' +
+        '<h2>Who runs the show?</h2>' +
+        '<p class="q-hint">Your AI can reference this name when callers ask to speak to someone.</p>' +
+        '<input type="text" class="field" id="f_ownerName" placeholder="e.g. John Smith" maxlength="60" value="' + escapeHtml(state.answers.ownerName) + '">' +
+        navButtons(true) +
+      '</div>'
+    );
+  }
+  function stepBusinessPhone() {
+    return (
+      '<div class="question-slide active">' +
+        '<div class="q-label">Your current line</div>' +
+        '<h2>What\'s your business phone number today?</h2>' +
+        '<p class="q-hint">We\'ll pick a new number in your area code. You\'ll forward this existing line to the new one.</p>' +
+        '<input type="tel" class="field" id="f_businessPhone" placeholder="(555) 123-4567" value="' + escapeHtml(state.answers.businessPhoneToForward) + '">' +
+        navButtons(true) +
+      '</div>'
+    );
+  }
+  function stepServices() {
+    return (
+      '<div class="question-slide active">' +
+        '<div class="q-label">Your services</div>' +
+        '<h2>What services do you offer?</h2>' +
+        '<p class="q-hint">List your main services so your AI knows exactly what you do.</p>' +
+        '<textarea class="field" id="f_services" maxlength="600" placeholder="e.g. AC repair, furnace installation, duct cleaning, maintenance plans…">' + escapeHtml(state.answers.servicesOffered) + '</textarea>' +
+        '<div class="char-count" id="cc_services"></div>' +
+        navButtons(true) +
+      '</div>'
+    );
+  }
+  function stepPricing() {
+    return (
+      '<div class="question-slide active">' +
+        '<div class="q-label">Pricing guidance</div>' +
+        '<h2>How should the AI talk about pricing?</h2>' +
+        '<p class="q-hint">Tell us exactly what to say — "free quotes after a 15-min call," "starts at $X," "depends on the job, I\'ll schedule an estimate," etc.</p>' +
+        '<textarea class="field" id="f_pricing" maxlength="400" placeholder="e.g. Pricing depends on the job. The AI should offer to book a free 15-minute estimate call.">' + escapeHtml(state.answers.pricingGuidance) + '</textarea>' +
+        navButtons(true) +
+      '</div>'
+    );
+  }
+  function stepHours() {
+    var rows = DAYS.map(function(day) {
+      var h = state.answers.hours[day];
+      var open = h ? h.open : '08:00';
+      var close = h ? h.close : '17:00';
+      var isOpen = !!h;
+      return (
+        '<div class="hours-row" data-day="' + day + '">' +
+          '<div class="hours-day">' + day.slice(0, 3) + '</div>' +
+          '<input type="time" data-open value="' + open + '" ' + (isOpen ? '' : 'disabled') + '>' +
+          '<input type="time" data-close value="' + close + '" ' + (isOpen ? '' : 'disabled') + '>' +
+          '<button type="button" class="hours-toggle ' + (isOpen ? '' : 'closed') + '" data-toggle>' +
+            (isOpen ? 'Open' : 'Closed') +
+          '</button>' +
+        '</div>'
+      );
+    }).join('');
+    return (
+      '<div class="question-slide active">' +
+        '<div class="q-label">Business hours</div>' +
+        '<h2>When are you open?</h2>' +
+        '<p class="q-hint mb-small">Toggle each day. Your AI tells callers exactly when you\'re available.</p>' +
+        '<div class="hours-table">' + rows + '</div>' +
+        navButtons(true) +
+      '</div>'
+    );
+  }
+  function stepAfterHours() {
+    var opts = [
+      { v: 'Take a detailed message and tell them we\'ll call back next business day', icon: '📝', label: 'Take a message', sub: 'Collect name, number, and what they need' },
+      { v: 'Book them for the next available appointment slot', icon: '📅', label: 'Book an appointment', sub: 'Schedule for the next open slot' },
+      { v: 'Just let them know we\'re closed and share business hours', icon: '🔕', label: 'Just let them know we\'re closed', sub: 'Give hours, tell them to call back' }
+    ];
+    return (
+      '<div class="question-slide active">' +
+        '<div class="q-label">After hours</div>' +
+        '<h2>What should happen when someone calls after hours?</h2>' +
+        '<p class="q-hint">Your AI will handle this automatically.</p>' +
+        '<div class="choices">' +
+          opts.map(function(o) {
+            var sel = state.answers.afterHoursBehavior === o.v ? ' selected' : '';
+            return '<button type="button" class="choice-btn' + sel + '" data-choice data-field="afterHoursBehavior" data-value="' + escapeHtml(o.v) + '">' +
+              '<span class="choice-icon">' + o.icon + '</span>' +
+              '<div><div class="choice-label">' + o.label + '</div><div class="choice-sub">' + o.sub + '</div></div>' +
+            '</button>';
+          }).join('') +
+        '</div>' +
+        navButtons(true) +
+      '</div>'
+    );
+  }
+  function stepBooking() {
+    return (
+      '<div class="question-slide active">' +
+        '<div class="q-label">Where do summaries go</div>' +
+        '<h2>What email should we send call summaries to?</h2>' +
+        '<p class="q-hint">After every call we\'ll email you a summary — who called, what they wanted, and any appointment booked.</p>' +
+        '<input type="email" class="field" id="f_summaryEmail" placeholder="you@yourbusiness.com" value="' + escapeHtml(state.answers.summaryEmail) + '">' +
+        navButtons(true) +
+      '</div>'
+    );
+  }
+  function stepVoice() {
+    var voices = [
+      { id: 'friendly_female', label: 'Friendly Female', emoji: '👋' },
+      { id: 'professional_female', label: 'Professional Female', emoji: '💼' },
+      { id: 'friendly_male', label: 'Friendly Male', emoji: '👋' },
+      { id: 'professional_male', label: 'Professional Male', emoji: '💼' },
+      { id: 'british_female', label: 'British Female', emoji: '🇬🇧' },
+      { id: 'british_male', label: 'British Male', emoji: '🇬🇧' }
+    ];
+    return (
+      '<div class="question-slide active">' +
+        '<div class="q-label">Voice preference</div>' +
+        '<h2>Pick a voice for your AI.</h2>' +
+        '<p class="q-hint">You can change this later. Default is Friendly Female.</p>' +
+        '<div class="voice-grid">' +
+          voices.map(function(v) {
+            var sel = state.answers.voicePreference === v.id ? ' selected' : '';
+            return '<button type="button" class="choice-btn' + sel + '" data-choice data-field="voicePreference" data-value="' + v.id + '">' +
+              '<span class="choice-icon">' + v.emoji + '</span>' +
+              '<div class="choice-label">' + v.label + '</div>' +
+            '</button>';
+          }).join('') +
+        '</div>' +
+        navButtons(true) +
+      '</div>'
+    );
+  }
+  function stepEscalation() {
+    var isTransfer = state.answers.escalationBehavior === 'transfer';
+    return (
+      '<div class="question-slide active">' +
+        '<div class="q-label">Escalation</div>' +
+        '<h2>If the AI can\'t help, what should happen?</h2>' +
+        '<p class="q-hint">Pick one. If you choose transfer, we\'ll ask for the number.</p>' +
+        '<div class="choices">' +
+          '<button type="button" class="choice-btn ' + (isTransfer ? '' : 'selected') + '" data-choice data-field="escalationBehavior" data-value="message">' +
+            '<span class="choice-icon">📝</span>' +
+            '<div><div class="choice-label">Take a detailed message</div><div class="choice-sub">Text it to you and end the call warmly</div></div>' +
+          '</button>' +
+          '<button type="button" class="choice-btn ' + (isTransfer ? 'selected' : '') + '" data-choice data-field="escalationBehavior" data-value="transfer">' +
+            '<span class="choice-icon">📞</span>' +
+            '<div><div class="choice-label">Transfer to a human</div><div class="choice-sub">Route the call to the number below</div></div>' +
+          '</button>' +
+        '</div>' +
+        '<div id="transferWrap" style="margin-top:14px; display:' + (isTransfer ? 'block' : 'none') + ';">' +
+          '<input type="tel" class="field" id="f_transferNumber" placeholder="Transfer to: (555) 123-4567" value="' + escapeHtml(state.answers.transferNumber) + '">' +
+        '</div>' +
+        navButtons(true) +
+      '</div>'
+    );
+  }
+  function stepFaqsSimple() {
+    return (
+      '<div class="question-slide active">' +
+        '<div class="q-label">FAQ</div>' +
+        '<h2>What do callers usually ask about?</h2>' +
+        '<p class="q-hint">Give a quick brain-dump. We\'ll train your AI on these.</p>' +
+        '<textarea class="field" id="f_faqBlob" maxlength="800" placeholder="e.g. How much does an AC tune-up cost? Do you offer financing? What areas do you service?">' + escapeHtml(state.answers.__faqBlob || '') + '</textarea>' +
+        navButtons(true, 'Launch my AI Receptionist 🚀') +
+      '</div>'
+    );
+  }
+  function stepFaqsAdvanced() {
+    var pairs = state.answers.faqs && state.answers.faqs.length > 0 ? state.answers.faqs : [{ question: '', answer: '' }];
+    return (
+      '<div class="question-slide active">' +
+        '<div class="q-label">FAQs</div>' +
+        '<h2>Your top questions + answers</h2>' +
+        '<p class="q-hint">Add up to 5 question/answer pairs. At least one is recommended but all are optional.</p>' +
+        '<div class="faq-pairs" id="faqPairs">' +
+          pairs.map(function(p, i) { return faqPairHtml(p, i); }).join('') +
+        '</div>' +
+        (pairs.length < 5 ? '<button type="button" class="faq-add" id="faqAdd">+ Add another FAQ</button>' : '') +
+        navButtons(true) +
+      '</div>'
+    );
+  }
+  function faqPairHtml(pair, i) {
+    return (
+      '<div class="faq-pair" data-faq-index="' + i + '">' +
+        '<input type="text" data-q placeholder="Question ' + (i + 1) + ' — e.g. Do you offer free estimates?" value="' + escapeHtml(pair.question || '') + '">' +
+        '<textarea data-a placeholder="Answer">' + escapeHtml(pair.answer || '') + '</textarea>' +
+      '</div>'
+    );
+  }
+  function stepReview() {
+    var a = state.answers;
+    var hoursLines = DAYS.map(function(d) {
+      var h = a.hours[d];
+      return '<div><strong>' + d + ':</strong> ' + (h ? fmtTime(h.open) + ' – ' + fmtTime(h.close) : 'Closed') + '</div>';
+    }).join('');
+    return (
+      '<div class="question-slide active">' +
+        '<div class="q-label">Review</div>' +
+        '<h2>Looks good?</h2>' +
+        '<p class="q-hint">Quick review. You can go back to change anything.</p>' +
+        '<div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; font-size: 14px; line-height: 1.7; color: var(--dim);">' +
+          '<div><strong>Business:</strong> ' + escapeHtml(a.businessName) + '</div>' +
+          '<div><strong>Owner:</strong> ' + escapeHtml(a.ownerName) + '</div>' +
+          (a.businessPhoneToForward ? '<div><strong>Forward from:</strong> ' + escapeHtml(a.businessPhoneToForward) + '</div>' : '') +
+          '<div><strong>Summary email:</strong> ' + escapeHtml(a.summaryEmail) + '</div>' +
+          '<div><strong>Voice:</strong> ' + escapeHtml(a.voicePreference) + '</div>' +
+          '<div style="margin-top: 10px;"><strong>Hours:</strong></div>' + hoursLines +
+        '</div>' +
+        navButtons(true, 'Launch my AI Receptionist 🚀') +
+      '</div>'
+    );
+  }
+
+  // ===== Wire up events for the currently-rendered step =====
+  function wireStep(key) {
+    var nextBtn = $('formWrap').querySelector('[data-next]');
+    var backBtn = $('formWrap').querySelector('[data-back]');
+
+    if (backBtn) backBtn.addEventListener('click', goBack);
+    if (nextBtn) nextBtn.addEventListener('click', function() { handleNext(key); });
+
+    // Char counters
+    var svc = $('f_services');
+    if (svc) {
+      var cc = $('cc_services');
+      var update = function() { cc.textContent = svc.value.length + ' / ' + svc.maxLength; };
+      svc.addEventListener('input', update); update();
+    }
+
+    // Choice buttons
+    $('formWrap').querySelectorAll('[data-choice]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var field = btn.getAttribute('data-field');
+        var value = btn.getAttribute('data-value');
+        state.answers[field] = value;
+        $('formWrap').querySelectorAll('[data-field="' + field + '"]').forEach(function(b) { b.classList.remove('selected'); });
+        btn.classList.add('selected');
+
+        // Show/hide transfer field on escalation
+        if (field === 'escalationBehavior') {
+          var wrap = $('transferWrap');
+          if (wrap) wrap.style.display = (value === 'transfer') ? 'block' : 'none';
+          return;
+        }
+        // Auto-advance for non-hours/non-escalation single-select steps
+        if (field === 'afterHoursBehavior' || field === 'voicePreference') {
+          setTimeout(function() { handleNext(key); }, 250);
+        }
+      });
+    });
+
+    // Hours toggles + time inputs
+    $('formWrap').querySelectorAll('.hours-row').forEach(function(row) {
+      var day = row.getAttribute('data-day');
+      var openI = row.querySelector('[data-open]');
+      var closeI = row.querySelector('[data-close]');
+      var toggle = row.querySelector('[data-toggle]');
+
+      toggle.addEventListener('click', function() {
+        var isOpen = !toggle.classList.contains('closed');
+        if (isOpen) {
+          state.answers.hours[day] = null;
+          toggle.classList.add('closed');
+          toggle.textContent = 'Closed';
+          openI.disabled = true; closeI.disabled = true;
+        } else {
+          state.answers.hours[day] = { open: openI.value, close: closeI.value };
+          toggle.classList.remove('closed');
+          toggle.textContent = 'Open';
+          openI.disabled = false; closeI.disabled = false;
+        }
+      });
+      function sync() {
+        if (!toggle.classList.contains('closed')) {
+          state.answers.hours[day] = { open: openI.value, close: closeI.value };
+        }
+      }
+      openI.addEventListener('change', sync);
+      closeI.addEventListener('change', sync);
+    });
+
+    // FAQ pairs
+    if (key === 'faqsAdvanced') {
+      var addBtn = $('faqAdd');
+      if (addBtn) {
+        addBtn.addEventListener('click', function() {
+          if (state.answers.faqs.length >= 5) return;
+          state.answers.faqs.push({ question: '', answer: '' });
+          renderStep();
+        });
+      }
+      $('formWrap').querySelectorAll('.faq-pair').forEach(function(pair, i) {
+        var q = pair.querySelector('[data-q]');
+        var a = pair.querySelector('[data-a]');
+        q.addEventListener('input', function() { state.answers.faqs[i].question = q.value; });
+        a.addEventListener('input', function() { state.answers.faqs[i].answer = a.value; });
+      });
+    }
+  }
+
+  function persistCurrent() {
+    var key = currentStepKey();
+    switch (key) {
+      case 'businessName': state.answers.businessName = valOf('f_businessName'); break;
+      case 'ownerName': state.answers.ownerName = valOf('f_ownerName'); break;
+      case 'businessPhone': state.answers.businessPhoneToForward = valOf('f_businessPhone'); break;
+      case 'services': state.answers.servicesOffered = valOf('f_services'); break;
+      case 'pricing': state.answers.pricingGuidance = valOf('f_pricing'); break;
+      case 'booking': state.answers.summaryEmail = valOf('f_summaryEmail'); break;
+      case 'escalation':
+        if (state.answers.escalationBehavior === 'transfer') {
+          state.answers.transferNumber = valOf('f_transferNumber');
+        }
+        break;
+      case 'faqsSimple':
+        var blob = valOf('f_faqBlob');
+        state.answers.__faqBlob = blob;
+        break;
+    }
+  }
+  function valOf(id) { var el = $(id); return el ? el.value.trim() : ''; }
+
+  function validateCurrent() {
+    persistCurrent();
+    var key = currentStepKey();
+    var err = '';
+    if (key === 'businessName' && !state.answers.businessName) err = 'Give your business a name.';
+    if (key === 'ownerName' && !state.answers.ownerName) err = 'What\'s the owner\'s name?';
+    if (key === 'businessPhone' && !isPhone(state.answers.businessPhoneToForward)) err = 'Enter a valid US phone number.';
+    if (key === 'services' && state.answers.servicesOffered.length < 10) err = 'Give us a little more detail — at least a couple services.';
+    if (key === 'pricing' && !state.answers.pricingGuidance) err = 'Tell the AI what to say about pricing (even "we give free quotes" works).';
+    if (key === 'hours' && !Object.values(state.answers.hours).some(function(v) { return v; })) err = 'Pick at least one day.';
+    if (key === 'afterHours' && !state.answers.afterHoursBehavior) err = 'Pick an option.';
+    if (key === 'booking' && !isEmail(state.answers.summaryEmail)) err = 'Enter a valid email.';
+    if (key === 'voice' && !state.answers.voicePreference) err = 'Pick a voice.';
+    if (key === 'escalation' && state.answers.escalationBehavior === 'transfer' && !isPhone(state.answers.transferNumber)) err = 'Give a valid transfer number.';
+
+    if (err) { showInlineError(err); return false; }
+    hideInlineError();
+    return true;
+  }
+
+  function showInlineError(msg) {
+    var el = $('inlineError');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+  }
+  function hideInlineError() { var el = $('inlineError'); if (el) el.classList.remove('show'); }
+
+  function handleNext(fromKey) {
+    if (!validateCurrent()) return;
+    var total = state.totalSteps;
+    // If this is the last step, submit
+    if (state.currentStep >= total) { return submit(); }
+    state.currentStep++;
+    renderStep();
+  }
+  function goBack() {
+    persistCurrent();
+    if (state.currentStep <= 1) { showModePicker(); return; }
+    state.currentStep--;
+    renderStep();
+  }
+
+  // Enter-key support
+  document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter') return;
+    // Only advance on Enter if we're in a single-line text field (not textarea)
+    if (e.target && e.target.tagName === 'TEXTAREA') return;
+    var nextBtn = document.querySelector('[data-next]');
+    if (!nextBtn) return;
+    e.preventDefault();
+    nextBtn.click();
+  });
+
+  // ===== Submit =====
+  function submit() {
+    $('formWrap').style.display = 'none';
+    hideProgress();
+    $('submittingScreen').style.display = 'block';
+
+    var statuses = ['Saving your setup…', 'Building your AI…', 'Provisioning your number…', 'Finalizing…'];
+    var si = 0;
+    var interval = setInterval(function() {
+      si = (si + 1) % statuses.length;
+      $('submitStatus').textContent = statuses[si];
+    }, 1500);
+
+    // Clean up payload
+    var payload = {
+      token: state.token,
+      answers: {
+        businessName: state.answers.businessName,
+        ownerName: state.answers.ownerName,
+        servicesOffered: state.answers.servicesOffered,
+        summaryEmail: state.answers.summaryEmail,
+        voicePreference: state.answers.voicePreference,
+        afterHoursBehavior: state.answers.afterHoursBehavior,
+        bookingPreference: 'email',
+        hours: state.answers.hours,
+        pricingGuidance: state.answers.pricingGuidance || undefined,
+        businessPhoneToForward: state.answers.businessPhoneToForward || undefined,
+        areaCode: extractAreaCode(state.answers.businessPhoneToForward),
+        escalationBehavior: state.answers.escalationBehavior,
+        transferNumber: state.answers.transferNumber || undefined,
+        faqs: state.answers.faqs.filter(function(p) { return p.question && p.answer; }),
+        legacyFaqBlob: state.answers.__faqBlob || undefined
+      }
+    };
+
+    fetch(SUBMIT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(function(r) { return r.json().then(function(j) { return { ok: r.ok, body: j }; }); })
+      .then(function(res) {
+        clearInterval(interval);
+        $('submittingScreen').style.display = 'none';
+        if (res.ok && res.body && res.body.success) {
+          if (res.body.phoneNumber) {
+            $('phoneText').textContent = formatPhone(res.body.phoneNumber);
+            $('assignedPhone').style.display = 'inline-flex';
+          }
+          $('successScreen').style.display = 'block';
+        } else {
+          // Partial failure — ops was alerted server-side
+          $('successScreen').querySelector('h2').innerHTML = "We're on it.<br><span>Check your email shortly.</span>";
+          $('successScreen').querySelector('p').textContent = "Your setup is saved. Our team hit a hiccup provisioning your AI — we've been alerted and will email you within 1 business hour.";
+          $('successScreen').style.display = 'block';
+        }
+      }).catch(function() {
+        clearInterval(interval);
+        $('submittingScreen').style.display = 'none';
+        $('successScreen').querySelector('h2').innerHTML = "Almost there.<br><span>We saved your answers.</span>";
+        $('successScreen').querySelector('p').textContent = "Something went wrong on our end. Our team has been notified and will email you shortly.";
+        $('successScreen').style.display = 'block';
+      });
+  }
+
+  // ===== Utils =====
+  function escapeHtml(s) {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function isEmail(s) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s || ''); }
+  function isPhone(s) { var d = (s || '').replace(/\D/g, ''); return d.length === 10 || (d.length === 11 && d[0] === '1'); }
+  function extractAreaCode(phone) {
+    var d = (phone || '').replace(/\D/g, '');
+    if (d.length === 10) return d.slice(0, 3);
+    if (d.length === 11 && d[0] === '1') return d.slice(1, 4);
+    return undefined;
+  }
+  function formatPhone(e164) {
+    var d = (e164 || '').replace(/\D/g, '');
+    if (d.length === 11 && d[0] === '1') d = d.slice(1);
+    if (d.length !== 10) return e164;
+    return '(' + d.slice(0,3) + ') ' + d.slice(3,6) + '-' + d.slice(6);
+  }
+  function fmtTime(t24) {
+    if (!t24 || !/^\d{1,2}:\d{2}$/.test(t24)) return t24;
+    var parts = t24.split(':'), h = parseInt(parts[0], 10), m = parts[1];
+    var suf = h >= 12 ? 'PM' : 'AM';
+    var h12 = h % 12 === 0 ? 12 : h % 12;
+    return h12 + ':' + m + ' ' + suf;
+  }
+})();
+</script>
+</body>
+</html>
