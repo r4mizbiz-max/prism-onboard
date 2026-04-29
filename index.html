@@ -198,11 +198,8 @@
 <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
 <div class="step-counter" id="stepCounter" style="display:none;">Step <span id="currentStep">1</span> of <span id="totalSteps">8</span></div>
 
-<a href="https://prism-business.com" class="logo">
-  <div class="logo-icon">
-    <svg viewBox="0 0 16 16" fill="none"><path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/><circle cx="8" cy="8" r="2" fill="white"/></svg>
-  </div>
-  Prism
+<a href="https://prism-business.com" class="logo" style="display:inline-flex;align-items:center;text-decoration:none;">
+  <img src="https://assets.cdn.filesafe.space/DjnB1uAb54S4vL1rW3sh/media/696a6c2c65d73d18c4ff9c16.png" alt="Prism Business Solutions" style="height:60px;width:auto;display:block;">
 </a>
 
 <main>
@@ -843,10 +840,10 @@
         bookingPreference: 'email',
         hours: state.answers.hours,
         pricingGuidance: state.answers.pricingGuidance || undefined,
-        businessPhoneToForward: toE164(state.answers.businessPhoneToForward),
+        businessPhoneToForward: state.answers.businessPhoneToForward || undefined,
         areaCode: extractAreaCode(state.answers.businessPhoneToForward),
         escalationBehavior: state.answers.escalationBehavior,
-        transferNumber: toE164(state.answers.transferNumber),
+        transferNumber: state.answers.transferNumber || undefined,
         faqs: state.answers.faqs.filter(function(p) { return p.question && p.answer; }),
         legacyFaqBlob: state.answers.__faqBlob || undefined
       }
@@ -889,14 +886,6 @@
   }
   function isEmail(s) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s || ''); }
   function isPhone(s) { var d = (s || '').replace(/\D/g, ''); return d.length === 10 || (d.length === 11 && d[0] === '1'); }
-  function toE164(s) {
-    if (!s) return undefined;
-    var d = String(s).replace(/\D/g, '');
-    if (d.length === 10) return '+1' + d;
-    if (d.length === 11 && d[0] === '1') return '+' + d;
-    if (/^\+\d{10,15}$/.test(s)) return s;
-    return undefined;
-  }
   function extractAreaCode(phone) {
     var d = (phone || '').replace(/\D/g, '');
     if (d.length === 10) return d.slice(0, 3);

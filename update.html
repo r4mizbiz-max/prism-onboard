@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Update your AI receptionist — Prism</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --accent: #7B6EF6; --accent2: #5EEAD4; --bg: #080808; --surface: #111;
+    --border: rgba(255,255,255,0.08); --border-bright: rgba(255,255,255,0.16);
+    --text: #f0f0f0; --dim: #999; --muted: #666;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); min-height: 100%; }
+  body { color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 16px; line-height: 1.55; min-height: 100vh; padding: 0 24px 80px; }
+
+  .bg-orb { position: fixed; width: 600px; height: 600px; background: radial-gradient(circle, rgba(123,110,246,0.06) 0%, transparent 70%); top: -150px; left: 50%; transform: translateX(-50%); pointer-events: none; z-index: 0; }
+  .bg-grid { position: fixed; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px); background-size: 60px 60px; mask-image: radial-gradient(ellipse at center, black 25%, transparent 80%); pointer-events: none; z-index: 0; }
+
+  .logo { position: fixed; top: 24px; left: 40px; z-index: 10; display: inline-flex; align-items: center; text-decoration: none; }
+  .logo img { height: 60px; width: auto; display: block; }
+
+  main { position: relative; z-index: 1; max-width: 720px; margin: 120px auto 0; }
+
+  .loading-screen, .invalid-state, .success-screen { text-align: center; padding: 80px 16px; }
+  .spinner { width: 48px; height: 48px; border: 2px solid rgba(123,110,246,0.1); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 24px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .invalid-state h2, .success-screen h2 { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 28px; margin-bottom: 14px; letter-spacing: -0.02em; }
+  .invalid-state p, .success-screen p { color: var(--dim); font-size: 15px; line-height: 1.65; }
+  .invalid-state a { color: var(--accent); }
+
+  .header { text-align: center; margin-bottom: 40px; }
+  .header .pretitle { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
+  .header h1 { font-family: 'Syne', sans-serif; font-weight: 800; font-size: clamp(28px, 4vw, 38px); letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 10px; }
+  .header h1 span { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .header .biz-line { font-size: 14px; color: var(--dim); }
+  .header .biz-line strong { color: var(--text); font-weight: 500; }
+
+  .section { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px 28px 24px; margin-bottom: 18px; position: relative; }
+  .section h3 { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 18px; margin-bottom: 6px; letter-spacing: -0.01em; }
+  .section .section-hint { font-size: 13px; color: var(--dim); margin-bottom: 22px; line-height: 1.55; }
+  .section.pronunciation { border-color: rgba(94,234,212,0.25); background: linear-gradient(180deg, rgba(94,234,212,0.04), transparent 60%), var(--surface); }
+  .section.pronunciation h3 { color: var(--accent2); }
+  .section.pronunciation h3::before { content: '✦ '; }
+
+  label { display: block; font-size: 13px; color: var(--dim); margin-bottom: 6px; font-weight: 500; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+  .field-wrap { margin-bottom: 16px; }
+  .field-wrap:last-child { margin-bottom: 0; }
+  .field, textarea.field {
+    width: 100%; background: #0a0a0a; border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px;
+    transition: border-color 0.18s, background 0.18s; outline: none;
+  }
+  .field:focus, textarea.field:focus { border-color: rgba(123,110,246,0.55); background: #0d0d0d; }
+  textarea.field { min-height: 100px; resize: vertical; line-height: 1.55; }
+  textarea.field.tall { min-height: 140px; }
+
+  select.field { appearance: none; background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+
+  .choices { display: flex; flex-wrap: wrap; gap: 8px; }
+  .choice-btn {
+    flex: 1; min-width: 110px; padding: 11px 14px; background: #0a0a0a; border: 1px solid var(--border);
+    border-radius: 10px; color: var(--dim); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+    cursor: pointer; transition: border-color 0.18s, color 0.18s, background 0.18s;
+  }
+  .choice-btn:hover { color: var(--text); }
+  .choice-btn.is-active { border-color: var(--accent); color: var(--accent); background: rgba(123,110,246,0.08); }
+
+  .hours-grid { display: grid; grid-template-columns: 110px 1fr 90px 1fr 90px; gap: 10px 12px; align-items: center; }
+  .hours-grid .day-name { font-size: 13px; color: var(--text); }
+  .hours-grid input[type=time] { background: #0a0a0a; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; color-scheme: dark; }
+  .hours-grid label.toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dim); cursor: pointer; user-select: none; }
+  .hours-grid label.toggle input { accent-color: var(--accent); }
+  .hours-grid .closed-cell { color: var(--muted); font-size: 12px; font-style: italic; }
+
+  .faq-pair { display: grid; grid-template-columns: 1fr 1fr 32px; gap: 10px; margin-bottom: 10px; align-items: start; }
+  .faq-pair textarea { min-height: 64px; }
+  .faq-remove { width: 32px; height: 32px; background: rgba(255,77,77,0.08); border: 1px solid rgba(255,77,77,0.2); border-radius: 8px; color: #ff9999; cursor: pointer; align-self: center; font-size: 16px; }
+  .faq-remove:hover { background: rgba(255,77,77,0.18); }
+  .faq-add { width: 100%; padding: 10px; background: transparent; border: 1px dashed var(--border-bright); border-radius: 10px; color: var(--accent); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; }
+  .faq-add:hover { background: rgba(123,110,246,0.06); border-color: rgba(123,110,246,0.4); }
+
+  .actions { display: flex; gap: 12px; margin-top: 28px; }
+  .btn-save { flex: 1; padding: 16px 24px; background: var(--accent); color: #fff; border: none; border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 500; cursor: pointer; transition: background 0.2s, transform 0.2s, box-shadow 0.2s; }
+  .btn-save:hover:not(:disabled) { background: #6B5EE6; transform: translateY(-1px); box-shadow: 0 12px 30px rgba(123,110,246,0.3); }
+  .btn-save:disabled { opacity: 0.7; cursor: wait; }
+
+  .inline-error { margin-top: 14px; padding: 12px 16px; background: rgba(255,77,77,0.08); border: 1px solid rgba(255,77,77,0.25); border-radius: 10px; font-size: 13px; color: #ff9999; display: none; }
+  .inline-error.show { display: block; }
+
+  .transfer-row { display: none; }
+  .transfer-row.show { display: block; }
+
+  .phone-display { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; background: rgba(94,234,212,0.08); border: 1px solid rgba(94,234,212,0.3); border-radius: 100px; color: var(--accent2); font-family: 'Syne', sans-serif; font-weight: 600; font-size: 15px; margin: 16px 0; }
+
+  @media (max-width: 600px) {
+    .row { grid-template-columns: 1fr; }
+    .hours-grid { grid-template-columns: 90px 1fr 80px; }
+    .hours-grid .closed-toggle-row { grid-column: 1 / -1; }
+    .logo { left: 20px; top: 18px; }
+    .logo img { height: 48px; }
+    main { margin-top: 100px; }
+    .section { padding: 22px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-orb"></div>
+<div class="bg-grid"></div>
+
+<a href="https://prism-business.com" class="logo">
+  <img src="https://assets.cdn.filesafe.space/DjnB1uAb54S4vL1rW3sh/media/696a6c2c65d73d18c4ff9c16.png" alt="Prism Business Solutions">
+</a>
+
+<main>
+  <div class="loading-screen" id="loadingScreen">
+    <div class="spinner"></div>
+    <p>Loading your receptionist...</p>
+  </div>
+
+  <div class="invalid-state" id="invalidState" style="display:none;">
+    <h2>This link doesn't work.</h2>
+    <p id="invalidMsg">The token is missing, expired, or invalid. <br><a href="https://prism-business.com">Go to Prism</a> or <a href="mailto:hello@prism-business.com">contact us</a> if you need help.</p>
+  </div>
+
+  <div id="formScreen" style="display:none;">
+    <div class="header">
+      <div class="pretitle">Edit anytime</div>
+      <h1>Update your <span>AI receptionist</span></h1>
+      <p class="biz-line">Editing config for <strong id="bizLabel">your business</strong> · Changes apply instantly to live calls.</p>
+      <div id="phonePill" class="phone-display" style="display:none;">📞 <span id="phoneText"></span></div>
+    </div>
+
+    <div class="section pronunciation">
+      <h3>Special instructions / pronunciation</h3>
+      <p class="section-hint">Anything the AI is getting wrong on calls — name pronunciation ("say <em>Hai-ree</em>, not <em>Harry</em>"), specific phrases to use or avoid, things to always mention. These are followed before everything else.</p>
+      <div class="field-wrap">
+        <textarea class="field tall" id="f_special" placeholder="e.g. Pronounce 'Caulfield' as KAUL-feeld. Always mention the 10-year warranty. Don't quote prices over $500 — say 'we'll send a free estimate'."></textarea>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Basics</h3>
+      <p class="section-hint">How the AI introduces your business and who it represents.</p>
+      <div class="row">
+        <div class="field-wrap">
+          <label for="f_businessName">Business name</label>
+          <input type="text" class="field" id="f_businessName" maxlength="80" placeholder="e.g. Smith's Plumbing">
+        </div>
+        <div class="field-wrap">
+          <label for="f_ownerName">Owner / point of contact</label>
+          <input type="text" class="field" id="f_ownerName" maxlength="80" placeholder="e.g. Joe Smith">
+        </div>
+      </div>
+      <div class="field-wrap">
+        <label for="f_services">Services offered</label>
+        <textarea class="field" id="f_services" placeholder="What does your business do? Be specific — the AI uses this to answer questions."></textarea>
+      </div>
+      <div class="field-wrap">
+        <label for="f_pricing">Pricing guidance (how to talk about cost)</label>
+        <textarea class="field" id="f_pricing" placeholder="e.g. Tune-ups start at $99. Don't quote installs over the phone — schedule a free estimate."></textarea>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Business hours</h3>
+      <p class="section-hint">Toggle a day off if you're closed. Times are local.</p>
+      <div class="hours-grid" id="hoursGrid"></div>
+      <div class="field-wrap" style="margin-top:18px;">
+        <label for="f_afterHours">After-hours behavior</label>
+        <textarea class="field" id="f_afterHours" placeholder="What should the AI do when someone calls outside hours? e.g. 'Take a message and let them know we'll call back at 8am.'"></textarea>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Voice</h3>
+      <p class="section-hint">Pick how your AI sounds.</p>
+      <div class="field-wrap">
+        <select class="field" id="f_voice">
+          <option value="friendly_female">Friendly female (Shimmer)</option>
+          <option value="professional_female">Professional female (Nova)</option>
+          <option value="friendly_male">Friendly male (Echo)</option>
+          <option value="professional_male">Professional male (Onyx)</option>
+          <option value="british_female">British female (Fable)</option>
+          <option value="british_male">British male (Alloy)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Booking &amp; summaries</h3>
+      <p class="section-hint">Where booking details and call summaries go after each call.</p>
+      <div class="field-wrap">
+        <label>Booking method</label>
+        <div class="choices" id="choices_booking">
+          <button type="button" class="choice-btn" data-booking="text">Text</button>
+          <button type="button" class="choice-btn" data-booking="email">Email</button>
+          <button type="button" class="choice-btn" data-booking="calendar">Calendar invite</button>
+        </div>
+      </div>
+      <div class="field-wrap">
+        <label for="f_summaryEmail">Email for summaries</label>
+        <input type="email" class="field" id="f_summaryEmail" placeholder="you@business.com">
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Escalation</h3>
+      <p class="section-hint">When a caller asks for a human, what should the AI do?</p>
+      <div class="field-wrap">
+        <div class="choices" id="choices_escalation">
+          <button type="button" class="choice-btn" data-esc="message">Take a message</button>
+          <button type="button" class="choice-btn" data-esc="transfer">Transfer the call</button>
+        </div>
+      </div>
+      <div class="field-wrap transfer-row" id="transferRow">
+        <label for="f_transfer">Transfer number (US, any format)</label>
+        <input type="tel" class="field" id="f_transfer" placeholder="(555) 123-4567">
+        <p class="section-hint" style="margin-top:6px; margin-bottom:0;">Make sure this number can pick up — if it's not working, double-check it's in service.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>FAQs</h3>
+      <p class="section-hint">Common caller questions + the answers your AI should give. Add as many as you want.</p>
+      <div id="faqsWrap"></div>
+      <button type="button" class="faq-add" id="faqAddBtn">＋ Add another Q&amp;A</button>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn-save" id="saveBtn">Save changes</button>
+    </div>
+    <div class="inline-error" id="inlineError"></div>
+  </div>
+
+  <div class="success-screen" id="successScreen" style="display:none;">
+    <div style="width: 80px; height: 80px; background: rgba(94,234,212,0.1); border: 1px solid rgba(94,234,212,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 28px;">
+      <svg width="36" height="36" viewBox="0 0 36 36" fill="none"><path d="M7 18L14.5 25.5L29 11" stroke="#5EEAD4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <h2>Saved.</h2>
+    <p>Your AI receptionist is updated and answering live calls with the new config right now.</p>
+    <p style="color: var(--muted); font-size: 13px; margin-top: 24px;">You can close this tab — or <a href="#" id="editAgain" style="color:var(--accent);">make another change</a>.</p>
+  </div>
+</main>
+
+<script>
+(function() {
+  var SUPABASE_URL = 'https://fsajjhlvlmyqxuvfeyvl.supabase.co';
+  var VALIDATE_URL = SUPABASE_URL + '/functions/v1/validate-update-token';
+  var SUBMIT_URL   = SUPABASE_URL + '/functions/v1/update-config-submit';
+  var DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+  var state = {
+    token: null,
+    customerEmail: '',
+    answers: defaultAnswers()
+  };
+
+  function defaultAnswers() {
+    return {
+      businessName: '',
+      ownerName: '',
+      servicesOffered: '',
+      pricingGuidance: '',
+      summaryEmail: '',
+      voicePreference: 'friendly_female',
+      hours: {
+        Monday: { open: '08:00', close: '17:00' },
+        Tuesday: { open: '08:00', close: '17:00' },
+        Wednesday: { open: '08:00', close: '17:00' },
+        Thursday: { open: '08:00', close: '17:00' },
+        Friday: { open: '08:00', close: '17:00' },
+        Saturday: null,
+        Sunday: null
+      },
+      afterHoursBehavior: '',
+      bookingPreference: 'email',
+      escalationBehavior: 'message',
+      transferNumber: '',
+      faqs: [{ question: '', answer: '' }],
+      specialInstructions: ''
+    };
+  }
+
+  function $(id) { return document.getElementById(id); }
+  function show(id) { $(id).style.display = ''; }
+  function hide(id) { $(id).style.display = 'none'; }
+  function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function showError(msg) { var e = $('inlineError'); e.textContent = msg; e.classList.add('show'); setTimeout(function(){ e.classList.remove('show'); }, 6000); }
+
+  // ───── Validate token ─────
+  document.addEventListener('DOMContentLoaded', function() {
+    var params = new URLSearchParams(window.location.search);
+    state.token = params.get('token');
+    if (!state.token) return showInvalid('No token in link. Check your email for the latest update link.');
+
+    fetch(VALIDATE_URL, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: state.token })
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      if (!data || !data.valid) {
+        var msg = 'This link is invalid or expired.';
+        if (data && data.reason === 'not_yet_onboarded') msg = 'Finish your initial setup first — check your welcome email for the setup link.';
+        if (data && data.reason === 'inactive_subscription') msg = 'Your subscription isn\'t active right now. Reach out at hello@prism-business.com.';
+        if (data && data.reason === 'no_active_assistant') msg = 'We couldn\'t find an active receptionist for this account. Email us — we\'ll fix it.';
+        return showInvalid(msg);
+      }
+      state.customerEmail = data.email || '';
+      mergeAnswers(data.answers || {});
+      if (!state.answers.summaryEmail) state.answers.summaryEmail = state.customerEmail;
+      if (!state.answers.businessName) state.answers.businessName = data.businessName || '';
+      if (!state.answers.ownerName)    state.answers.ownerName    = data.ownerName || '';
+
+      $('bizLabel').textContent = state.answers.businessName || data.businessName || 'your business';
+      if (data.twilioPhoneNumber) {
+        $('phoneText').textContent = data.twilioPhoneNumber;
+        $('phonePill').style.display = '';
+      }
+      hide('loadingScreen');
+      show('formScreen');
+      renderForm();
+    }).catch(function(err) {
+      console.error(err);
+      showInvalid('Couldn\'t reach the server. Try again in a moment.');
+    });
+  });
+
+  function mergeAnswers(incoming) {
+    var d = defaultAnswers();
+    for (var k in d) { state.answers[k] = (incoming[k] !== undefined && incoming[k] !== null) ? incoming[k] : d[k]; }
+    if (!state.answers.faqs || !state.answers.faqs.length) state.answers.faqs = [{ question: '', answer: '' }];
+    // hours could be partial — fill any missing day with default
+    var hd = d.hours;
+    for (var day in hd) { if (!(day in state.answers.hours)) state.answers.hours[day] = hd[day]; }
+  }
+
+  function showInvalid(msg) {
+    hide('loadingScreen');
+    $('invalidMsg').innerHTML = escapeHtml(msg) + ' <br><a href="https://prism-business.com">Go to Prism</a> or <a href="mailto:hello@prism-business.com">contact us</a>.';
+    show('invalidState');
+  }
+
+  // ───── Render the form ─────
+  function renderForm() {
+    $('f_special').value       = state.answers.specialInstructions || '';
+    $('f_businessName').value  = state.answers.businessName || '';
+    $('f_ownerName').value     = state.answers.ownerName || '';
+    $('f_services').value      = state.answers.servicesOffered || '';
+    $('f_pricing').value       = state.answers.pricingGuidance || '';
+    $('f_afterHours').value    = state.answers.afterHoursBehavior || '';
+    $('f_voice').value         = state.answers.voicePreference || 'friendly_female';
+    $('f_summaryEmail').value  = state.answers.summaryEmail || '';
+    $('f_transfer').value      = state.answers.transferNumber || '';
+
+    setActiveChoice('choices_booking', 'data-booking', state.answers.bookingPreference || 'email');
+    setActiveChoice('choices_escalation', 'data-esc', state.answers.escalationBehavior || 'message');
+    $('transferRow').classList.toggle('show', state.answers.escalationBehavior === 'transfer');
+
+    renderHours();
+    renderFaqs();
+
+    // Listeners
+    document.querySelectorAll('#choices_booking .choice-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        state.answers.bookingPreference = btn.getAttribute('data-booking');
+        setActiveChoice('choices_booking', 'data-booking', state.answers.bookingPreference);
+      });
+    });
+    document.querySelectorAll('#choices_escalation .choice-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        state.answers.escalationBehavior = btn.getAttribute('data-esc');
+        setActiveChoice('choices_escalation', 'data-esc', state.answers.escalationBehavior);
+        $('transferRow').classList.toggle('show', state.answers.escalationBehavior === 'transfer');
+      });
+    });
+
+    $('faqAddBtn').addEventListener('click', function() {
+      state.answers.faqs.push({ question: '', answer: '' });
+      renderFaqs();
+    });
+
+    $('saveBtn').addEventListener('click', save);
+    $('editAgain').addEventListener('click', function(e) { e.preventDefault(); hide('successScreen'); show('formScreen'); window.scrollTo(0, 0); });
+  }
+
+  function setActiveChoice(containerId, attr, value) {
+    document.querySelectorAll('#' + containerId + ' .choice-btn').forEach(function(b) {
+      b.classList.toggle('is-active', b.getAttribute(attr) === value);
+    });
+  }
+
+  function renderHours() {
+    var html = '';
+    DAYS.forEach(function(day) {
+      var h = state.answers.hours[day];
+      var open = h ? h.open : '08:00';
+      var close = h ? h.close : '17:00';
+      var checked = h ? 'checked' : '';
+      html +=
+        '<div class="day-name">' + day + '</div>' +
+        '<input type="time" data-hr="open" data-day="' + day + '" value="' + open + '"' + (h ? '' : ' disabled') + '>' +
+        '<span style="text-align:center;color:var(--muted);">to</span>' +
+        '<input type="time" data-hr="close" data-day="' + day + '" value="' + close + '"' + (h ? '' : ' disabled') + '>' +
+        '<label class="toggle"><input type="checkbox" data-open-toggle="' + day + '" ' + checked + '> Open</label>';
+    });
+    $('hoursGrid').innerHTML = html;
+    $('hoursGrid').querySelectorAll('input[type=checkbox]').forEach(function(cb) {
+      cb.addEventListener('change', function() {
+        var day = cb.getAttribute('data-open-toggle');
+        if (cb.checked) {
+          state.answers.hours[day] = state.answers.hours[day] || { open: '08:00', close: '17:00' };
+        } else {
+          state.answers.hours[day] = null;
+        }
+        renderHours();
+      });
+    });
+    $('hoursGrid').querySelectorAll('input[type=time]').forEach(function(tt) {
+      tt.addEventListener('change', function() {
+        var day = tt.getAttribute('data-day');
+        var which = tt.getAttribute('data-hr');
+        state.answers.hours[day] = state.answers.hours[day] || { open: '08:00', close: '17:00' };
+        state.answers.hours[day][which] = tt.value;
+      });
+    });
+  }
+
+  function renderFaqs() {
+    var html = '';
+    state.answers.faqs.forEach(function(f, i) {
+      html +=
+        '<div class="faq-pair" data-faq-i="' + i + '">' +
+          '<textarea data-faq="q" data-i="' + i + '" placeholder="Question (e.g. Do you do free estimates?)">' + escapeHtml(f.question) + '</textarea>' +
+          '<textarea data-faq="a" data-i="' + i + '" placeholder="Answer the AI should give">' + escapeHtml(f.answer) + '</textarea>' +
+          '<button type="button" class="faq-remove" data-rm="' + i + '" aria-label="Remove">×</button>' +
+        '</div>';
+    });
+    $('faqsWrap').innerHTML = html;
+    $('faqsWrap').querySelectorAll('textarea').forEach(function(ta) {
+      ta.addEventListener('input', function() {
+        var i = Number(ta.getAttribute('data-i'));
+        var key = ta.getAttribute('data-faq') === 'q' ? 'question' : 'answer';
+        state.answers.faqs[i][key] = ta.value;
+      });
+    });
+    $('faqsWrap').querySelectorAll('.faq-remove').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var i = Number(btn.getAttribute('data-rm'));
+        state.answers.faqs.splice(i, 1);
+        if (!state.answers.faqs.length) state.answers.faqs.push({ question: '', answer: '' });
+        renderFaqs();
+      });
+    });
+  }
+
+  // ───── Submit ─────
+  function save() {
+    state.answers.specialInstructions  = $('f_special').value.trim();
+    state.answers.businessName         = $('f_businessName').value.trim();
+    state.answers.ownerName            = $('f_ownerName').value.trim();
+    state.answers.servicesOffered      = $('f_services').value.trim();
+    state.answers.pricingGuidance      = $('f_pricing').value.trim();
+    state.answers.afterHoursBehavior   = $('f_afterHours').value.trim();
+    state.answers.voicePreference      = $('f_voice').value;
+    state.answers.summaryEmail         = $('f_summaryEmail').value.trim();
+    state.answers.transferNumber       = $('f_transfer').value.trim();
+    state.answers.faqs = (state.answers.faqs || []).filter(function(f) { return (f.question && f.question.trim()) || (f.answer && f.answer.trim()); });
+
+    if (!state.answers.businessName) return showError('Business name is required.');
+    if (!state.answers.ownerName)    return showError('Owner / contact name is required.');
+    if (!state.answers.servicesOffered) return showError('Services offered can\'t be empty.');
+    if (state.answers.escalationBehavior === 'transfer' && !state.answers.transferNumber) {
+      return showError('Add a transfer number, or switch escalation back to "Take a message".');
+    }
+    if (state.answers.summaryEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.answers.summaryEmail)) {
+      return showError('Summary email doesn\'t look right.');
+    }
+
+    var btn = $('saveBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    fetch(SUBMIT_URL, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: state.token, answers: state.answers })
+    }).then(function(r) { return r.json().then(function(j) { return { ok: r.ok, body: j }; }); }).then(function(res) {
+      btn.disabled = false; btn.textContent = 'Save changes';
+      if (!res.ok || !res.body || !res.body.success) {
+        return showError((res.body && res.body.error) || 'Couldn\'t save. Try again.');
+      }
+      hide('formScreen');
+      show('successScreen');
+      window.scrollTo(0, 0);
+    }).catch(function(err) {
+      btn.disabled = false; btn.textContent = 'Save changes';
+      console.error(err);
+      showError('Network error — try again.');
+    });
+  }
+})();
+</script>
+</body>
+</html>
