@@ -843,10 +843,10 @@
         bookingPreference: 'email',
         hours: state.answers.hours,
         pricingGuidance: state.answers.pricingGuidance || undefined,
-        businessPhoneToForward: state.answers.businessPhoneToForward || undefined,
+        businessPhoneToForward: toE164(state.answers.businessPhoneToForward),
         areaCode: extractAreaCode(state.answers.businessPhoneToForward),
         escalationBehavior: state.answers.escalationBehavior,
-        transferNumber: state.answers.transferNumber || undefined,
+        transferNumber: toE164(state.answers.transferNumber),
         faqs: state.answers.faqs.filter(function(p) { return p.question && p.answer; }),
         legacyFaqBlob: state.answers.__faqBlob || undefined
       }
@@ -889,6 +889,14 @@
   }
   function isEmail(s) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s || ''); }
   function isPhone(s) { var d = (s || '').replace(/\D/g, ''); return d.length === 10 || (d.length === 11 && d[0] === '1'); }
+  function toE164(s) {
+    if (!s) return undefined;
+    var d = String(s).replace(/\D/g, '');
+    if (d.length === 10) return '+1' + d;
+    if (d.length === 11 && d[0] === '1') return '+' + d;
+    if (/^\+\d{10,15}$/.test(s)) return s;
+    return undefined;
+  }
   function extractAreaCode(phone) {
     var d = (phone || '').replace(/\D/g, '');
     if (d.length === 10) return d.slice(0, 3);
