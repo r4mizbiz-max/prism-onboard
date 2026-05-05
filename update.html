@@ -180,14 +180,26 @@
 
     <div class="section">
       <h3>Voice</h3>
-      <p class="section-hint">Pick how your AI sounds.</p>
+      <p class="section-hint">Pick how your AI sounds. Spanish &amp; Hybrid use a multilingual voice automatically.</p>
       <div class="field-wrap">
         <select class="field" id="f_voice">
-          <option value="friendly_female">Friendly female — Clara (warm, conversational)</option>
-          <option value="professional_female">Professional female — Clara (warm, polished)</option>
-          <option value="friendly_male">Friendly male — Kai (relaxed, approachable)</option>
-          <option value="professional_male">Professional male — Nico (young, natural)</option>
-          <option value="energetic_male">Energetic male — Godfrey (upbeat)</option>
+          <option value="friendly_female">Friendly female — warm, conversational</option>
+          <option value="professional_female">Professional female — warm, polished</option>
+          <option value="friendly_male">Friendly male — relaxed, approachable</option>
+          <option value="professional_male">Professional male — young, natural</option>
+          <option value="energetic_male">Energetic male — upbeat</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Language</h3>
+      <p class="section-hint">Hybrid auto-detects each caller's language and replies in the same language.</p>
+      <div class="field-wrap">
+        <select class="field" id="f_language">
+          <option value="english">English</option>
+          <option value="spanish">Spanish (español)</option>
+          <option value="hybrid">Hybrid — auto-detect English &amp; Spanish</option>
         </select>
       </div>
     </div>
@@ -269,6 +281,7 @@
       pricingGuidance: '',
       summaryEmail: '',
       voicePreference: 'friendly_female',
+      language: 'english',
       hours: {
         Monday: { open: '08:00', close: '17:00' },
         Tuesday: { open: '08:00', close: '17:00' },
@@ -354,6 +367,7 @@
     $('f_pricing').value       = state.answers.pricingGuidance || '';
     $('f_afterHours').value    = state.answers.afterHoursBehavior || '';
     $('f_voice').value         = state.answers.voicePreference || 'friendly_female';
+    $('f_language').value      = state.answers.language || 'english';
     $('f_summaryEmail').value  = state.answers.summaryEmail || '';
     $('f_transfer').value      = state.answers.transferNumber || '';
 
@@ -467,6 +481,7 @@
     state.answers.pricingGuidance      = $('f_pricing').value.trim();
     state.answers.afterHoursBehavior   = $('f_afterHours').value.trim();
     state.answers.voicePreference      = $('f_voice').value;
+    state.answers.language             = $('f_language').value || 'english';
     state.answers.summaryEmail         = $('f_summaryEmail').value.trim();
     state.answers.transferNumber       = $('f_transfer').value.trim();
     state.answers.faqs = (state.answers.faqs || []).filter(function(f) { return (f.question && f.question.trim()) || (f.answer && f.answer.trim()); });
