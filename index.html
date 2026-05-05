@@ -282,6 +282,7 @@
       servicesOffered: '',
       summaryEmail: '',
       voicePreference: 'friendly_female',
+      language: 'english',
       afterHoursBehavior: '',
       bookingPreference: 'email',
       pricingGuidance: '',
@@ -361,7 +362,7 @@
   function startForm(mode) {
     state.mode = mode;
     $('modePicker').style.display = 'none';
-    state.totalSteps = (mode === 'advanced') ? 12 : 8;
+    state.totalSteps = (mode === 'advanced') ? 13 : 9;
     state.currentStep = 1;
     renderStep();
     $('formWrap').style.display = 'block';
@@ -369,10 +370,10 @@
 
   // ===== Steps =====
   function simpleSteps() {
-    return ['businessName', 'ownerName', 'services', 'hours', 'afterHours', 'booking', 'voice', 'faqsSimple'];
+    return ['businessName', 'ownerName', 'services', 'hours', 'afterHours', 'booking', 'voice', 'language', 'faqsSimple'];
   }
   function advancedSteps() {
-    return ['businessName', 'ownerName', 'businessPhone', 'services', 'pricing', 'hours', 'afterHours', 'booking', 'voice', 'escalation', 'faqsAdvanced', 'review'];
+    return ['businessName', 'ownerName', 'businessPhone', 'services', 'pricing', 'hours', 'afterHours', 'booking', 'voice', 'language', 'escalation', 'faqsAdvanced', 'review'];
   }
   function currentStepKey() {
     var seq = state.mode === 'advanced' ? advancedSteps() : simpleSteps();
@@ -396,6 +397,7 @@
       case 'afterHours': html = stepAfterHours(); break;
       case 'booking': html = stepBooking(); break;
       case 'voice': html = stepVoice(); break;
+      case 'language': html = stepLanguage(); break;
       case 'escalation': html = stepEscalation(); break;
       case 'faqsSimple': html = stepFaqsSimple(); break;
       case 'faqsAdvanced': html = stepFaqsAdvanced(); break;
@@ -569,6 +571,30 @@
       '</div>'
     );
   }
+  function stepLanguage() {
+    var langs = [
+      { id: 'english', label: 'English', sub: 'American-English receptionist', emoji: '🇺🇸' },
+      { id: 'spanish', label: 'Spanish', sub: 'Español neutro · responds in Spanish', emoji: '🇲🇽' },
+      { id: 'hybrid',  label: 'Hybrid (auto-detect)', sub: 'Speaks fluent English AND Spanish — auto-switches per caller', emoji: '🌐' }
+    ];
+    return (
+      '<div class="question-slide active">' +
+        '<div class="q-label">Language</div>' +
+        '<h2>What language should your receptionist speak?</h2>' +
+        '<p class="q-hint">Hybrid auto-detects the caller\'s language and responds in the same language. Best for bilingual markets.</p>' +
+        '<div class="choices">' +
+          langs.map(function(l) {
+            var sel = state.answers.language === l.id ? ' selected' : '';
+            return '<button type="button" class="choice-btn' + sel + '" data-choice data-field="language" data-value="' + l.id + '">' +
+              '<span class="choice-icon">' + l.emoji + '</span>' +
+              '<div><div class="choice-label">' + l.label + '</div><div class="choice-sub">' + l.sub + '</div></div>' +
+            '</button>';
+          }).join('') +
+        '</div>' +
+        navButtons(true) +
+      '</div>'
+    );
+  }
   function stepEscalation() {
     var isTransfer = state.answers.escalationBehavior === 'transfer';
     return (
@@ -644,6 +670,7 @@
           (a.businessPhoneToForward ? '<div><strong>Forward from:</strong> ' + escapeHtml(a.businessPhoneToForward) + '</div>' : '') +
           '<div><strong>Summary email:</strong> ' + escapeHtml(a.summaryEmail) + '</div>' +
           '<div><strong>Voice:</strong> ' + escapeHtml(a.voicePreference) + '</div>' +
+          '<div><strong>Language:</strong> ' + escapeHtml(a.language || 'english') + '</div>' +
           '<div style="margin-top: 10px;"><strong>Hours:</strong></div>' + hoursLines +
         '</div>' +
         navButtons(true, 'Launch my AI Receptionist 🚀') +
@@ -683,7 +710,7 @@
           return;
         }
         // Auto-advance for non-hours/non-escalation single-select steps
-        if (field === 'afterHoursBehavior' || field === 'voicePreference') {
+        if (field === 'afterHoursBehavior' || field === 'voicePreference' || field === 'language') {
           setTimeout(function() { handleNext(key); }, 250);
         }
       });
@@ -773,6 +800,7 @@
     if (key === 'afterHours' && !state.answers.afterHoursBehavior) err = 'Pick an option.';
     if (key === 'booking' && !isEmail(state.answers.summaryEmail)) err = 'Enter a valid email.';
     if (key === 'voice' && !state.answers.voicePreference) err = 'Pick a voice.';
+    if (key === 'language' && !state.answers.language) err = 'Pick a language.';
     if (key === 'escalation' && state.answers.escalationBehavior === 'transfer' && !isPhone(state.answers.transferNumber)) err = 'Give a valid transfer number.';
 
     if (err) { showInlineError(err); return false; }
@@ -836,6 +864,7 @@
         servicesOffered: state.answers.servicesOffered,
         summaryEmail: state.answers.summaryEmail,
         voicePreference: state.answers.voicePreference,
+        language: state.answers.language || 'english',
         afterHoursBehavior: state.answers.afterHoursBehavior,
         bookingPreference: 'email',
         hours: state.answers.hours,
