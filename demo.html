@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Prism — Demo Builder (Internal)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #080808;
+    --panel: #111;
+    --panel-2: #0d0d0d;
+    --line: rgba(255,255,255,0.06);
+    --text: #f0f0f0;
+    --muted: #888;
+    --accent: #5EEAD4;
+    --accent-2: #7B6EF6;
+    --warn: #f59e0b;
+    --bad: #ef4444;
+  }
+  html, body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; min-height: 100vh; }
+  body { padding: 32px 20px 80px; }
+  .wrap { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 380px; gap: 24px; }
+  @media (max-width: 880px) { .wrap { grid-template-columns: 1fr; } }
+  header { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding-bottom: 28px; border-bottom: 1px solid var(--line); }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-mark { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--accent-2) 0%, var(--accent) 100%); display: grid; place-items: center; font-weight: 800; color: #000; }
+  .brand-name { font-weight: 700; letter-spacing: -0.01em; }
+  .brand-sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .badge { font-size: 11px; padding: 6px 10px; border-radius: 999px; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); color: var(--warn); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+
+  /* Auth gate */
+  .gate { grid-column: 1 / -1; max-width: 420px; margin: 80px auto; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 32px; }
+  .gate h2 { font-size: 22px; margin-bottom: 8px; }
+  .gate p { color: var(--muted); font-size: 14px; margin-bottom: 20px; line-height: 1.5; }
+
+  /* Form panel */
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 28px; }
+  .panel h1 { font-size: 24px; letter-spacing: -0.02em; margin-bottom: 4px; }
+  .panel-sub { color: var(--muted); font-size: 14px; margin-bottom: 28px; line-height: 1.5; }
+
+  label { display: block; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 18px 0 8px; }
+  input[type="text"], input[type="email"], textarea, select {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 14px; color: var(--text); font-size: 14px; font-family: inherit;
+  }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); background: #131313; }
+  textarea { resize: vertical; min-height: 84px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 540px) { .row-2 { grid-template-columns: 1fr; } }
+
+  button { font-family: inherit; cursor: pointer; border: none; }
+  .btn-primary { display: block; width: 100%; margin-top: 28px; padding: 16px; border-radius: 12px; font-size: 15px; font-weight: 700; color: #000; background: linear-gradient(135deg, var(--accent-2) 0%, var(--accent) 100%); }
+  .btn-primary:hover { opacity: 0.92; }
+  .btn-primary:disabled { opacity: 0.5; cursor: wait; }
+  .btn-ghost { padding: 8px 14px; border-radius: 8px; background: transparent; color: var(--muted); border: 1px solid var(--line); font-size: 13px; }
+  .btn-ghost:hover { color: var(--text); border-color: var(--accent); }
+  .btn-bad { background: transparent; color: var(--bad); border: 1px solid rgba(239,68,68,0.3); padding: 6px 10px; border-radius: 6px; font-size: 12px; }
+  .btn-bad:hover { background: rgba(239,68,68,0.1); }
+
+  /* Result card */
+  .result { display: none; }
+  .result.show { display: block; animation: fadeIn 0.3s; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .result-head { display: flex; align-items: center; gap: 10px; color: var(--accent); font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 12px; }
+  .result-phone { font-size: 36px; font-weight: 800; font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace; letter-spacing: -0.02em; color: var(--text); margin: 8px 0 4px; }
+  .result-expiry { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+  .result-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .copy-btn { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: 500; }
+  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .dial-btn { background: var(--accent); color: #000; padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+
+  /* Side panel: active demos */
+  aside { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 24px; height: fit-content; }
+  aside h3 { font-size: 14px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+  aside h3 .refresh { color: var(--muted); font-size: 12px; cursor: pointer; }
+  aside h3 .refresh:hover { color: var(--accent); }
+  .demo-list { display: flex; flex-direction: column; gap: 10px; }
+  .demo-card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  .demo-card-name { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .demo-card-phone { font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace; font-size: 13px; color: var(--accent); margin-bottom: 8px; }
+  .demo-card-meta { font-size: 11px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
+  .empty-state { color: var(--muted); font-size: 13px; text-align: center; padding: 24px 12px; }
+
+  /* Status bar */
+  .status { margin-top: 16px; padding: 12px 14px; border-radius: 10px; font-size: 13px; display: none; }
+  .status.show { display: block; }
+  .status.info { background: rgba(94,234,212,0.08); border: 1px solid rgba(94,234,212,0.25); color: var(--accent); }
+  .status.error { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); color: var(--bad); }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  footer { grid-column: 1 / -1; text-align: center; color: var(--muted); font-size: 12px; margin-top: 40px; }
+</style>
+</head>
+<body>
+
+<div class="wrap" id="app">
+  <!-- AUTH GATE -->
+  <div class="gate" id="gate">
+    <h2>Prism Demo Builder</h2>
+    <p>Internal tool. Paste your access key to create demos for prospects.</p>
+    <label for="gateKey">Access Key</label>
+    <input type="text" id="gateKey" autocomplete="off" placeholder="paste key here">
+    <button class="btn-primary" id="gateBtn">Unlock</button>
+    <div class="status" id="gateStatus"></div>
+  </div>
+
+  <!-- MAIN APP (hidden until unlocked) -->
+  <div id="main" style="display: none; grid-column: 1 / -1;">
+    <div class="wrap" style="display: contents;">
+      <header>
+        <div class="brand">
+          <div class="brand-mark">P</div>
+          <div>
+            <div class="brand-name">Prism Demo Builder</div>
+            <div class="brand-sub">Spin up an AI receptionist on the spot. No payment required.</div>
+          </div>
+        </div>
+        <div class="badge">Internal · 48h TTL</div>
+      </header>
+
+      <section class="panel">
+        <h1>Create a demo for a prospect</h1>
+        <p class="panel-sub">Fill this out in front of them. ~30 seconds to provision a real Vapi assistant + dedicated Twilio number. Hand them their phone, they call, they're sold.</p>
+
+        <form id="demoForm">
+          <label for="businessName">Business name *</label>
+          <input type="text" id="businessName" required placeholder="e.g. Hunter Injury Lawyers" maxlength="80">
+
+          <label for="ownerName">Owner / point-of-contact name (optional)</label>
+          <input type="text" id="ownerName" placeholder="e.g. George Hunter" maxlength="80">
+
+          <label for="servicesOffered">What does the business do? *</label>
+          <textarea id="servicesOffered" required maxlength="600" placeholder="e.g. Personal injury law firm — car accidents, slip and fall, workplace injuries. Free consultations, contingency fees."></textarea>
+          <div class="hint">One paragraph. The more specific, the better the receptionist sounds.</div>
+
+          <div class="row-2">
+            <div>
+              <label for="voicePreference">Voice</label>
+              <select id="voicePreference">
+                <option value="professional_female" selected>Professional female (Sarah)</option>
+                <option value="friendly_female">Friendly female (Sarah)</option>
+                <option value="professional_male">Professional male (George)</option>
+                <option value="friendly_male">Friendly male (Charlie)</option>
+                <option value="energetic_male">Energetic male</option>
+              </select>
+            </div>
+            <div>
+              <label for="language">Language</label>
+              <select id="language">
+                <option value="english" selected>English only</option>
+                <option value="hybrid">Bilingual (EN + ES auto)</option>
+                <option value="spanish">Spanish only</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row-2">
+            <div>
+              <label for="transferNumber">Transfer number (optional)</label>
+              <input type="text" id="transferNumber" placeholder="555-555-5555">
+              <div class="hint">If a caller asks for a human, the bot will transfer here.</div>
+            </div>
+            <div>
+              <label for="areaCode">Twilio area code (optional)</label>
+              <input type="text" id="areaCode" placeholder="813" maxlength="3">
+              <div class="hint">3-digit US area code. Skip if any number is fine.</div>
+            </div>
+          </div>
+
+          <div class="row-2">
+            <div>
+              <label for="ttlHours">Demo lifespan (hours)</label>
+              <input type="text" id="ttlHours" value="48" maxlength="3">
+              <div class="hint">After this, the number is auto-released.</div>
+            </div>
+            <div>
+              <label for="creatorEmail">Your email (for tracking)</label>
+              <input type="email" id="creatorEmail" placeholder="brian@…">
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary" id="submitBtn">Spin Up Demo →</button>
+          <div class="status" id="formStatus"></div>
+        </form>
+
+        <div class="result" id="result">
+          <div class="result-head">✅ Demo Ready · Hand the prospect their phone</div>
+          <div class="result-phone" id="resultPhone">—</div>
+          <div class="result-expiry" id="resultExpiry">—</div>
+          <div class="result-actions">
+            <button type="button" class="copy-btn" id="copyBtn">📋 Copy number</button>
+            <a class="dial-btn" id="dialLink" href="#">📞 Tap to dial</a>
+            <button type="button" class="btn-ghost" id="newBtn">+ New demo</button>
+          </div>
+        </div>
+      </section>
+
+      <aside>
+        <h3>Active demos <span class="refresh" id="refreshBtn">↻ refresh</span></h3>
+        <div class="demo-list" id="demoList">
+          <div class="empty-state">Loading…</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <footer>© 2026 Prism Business Solutions LLC · Internal tool</footer>
+</div>
+
+<script>
+const SUPABASE = "https://fsajjhlvlmyqxuvfeyvl.supabase.co";
+const STORE_KEY = "prism_demo_key";
+
+// ---- gate ----
+function getKey() {
+  const url = new URL(location.href);
+  const k = url.searchParams.get("key") || sessionStorage.getItem(STORE_KEY);
+  return k;
+}
+function setKey(k) {
+  sessionStorage.setItem(STORE_KEY, k);
+  const url = new URL(location.href);
+  if (!url.searchParams.get("key")) {
+    url.searchParams.set("key", k);
+    history.replaceState({}, "", url.toString());
+  }
+}
+
+async function unlock() {
+  const k = (document.getElementById("gateKey").value || "").trim();
+  if (!k) return;
+  const status = document.getElementById("gateStatus");
+  status.className = "status info show";
+  status.innerHTML = '<span class="spinner"></span>Verifying…';
+
+  try {
+    const r = await fetch(`${SUPABASE}/functions/v1/list-demos`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: k }),
+    });
+    if (r.status === 401) {
+      status.className = "status error show";
+      status.textContent = "Wrong key. Try again.";
+      return;
+    }
+    if (!r.ok) {
+      status.className = "status error show";
+      status.textContent = `Server error: ${r.status}`;
+      return;
+    }
+    setKey(k);
+    document.getElementById("gate").style.display = "none";
+    document.getElementById("main").style.display = "block";
+    loadDemos();
+  } catch (e) {
+    status.className = "status error show";
+    status.textContent = "Network error. Try again.";
+  }
+}
+
+document.getElementById("gateBtn").addEventListener("click", unlock);
+document.getElementById("gateKey").addEventListener("keydown", (e) => { if (e.key === "Enter") unlock(); });
+
+// Auto-unlock if key already known
+const initialKey = getKey();
+if (initialKey) {
+  document.getElementById("gateKey").value = initialKey;
+  unlock();
+}
+
+// ---- form ----
+document.getElementById("demoForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const status = document.getElementById("formStatus");
+  const submitBtn = document.getElementById("submitBtn");
+  const result = document.getElementById("result");
+
+  result.classList.remove("show");
+  status.className = "status info show";
+  status.innerHTML = '<span class="spinner"></span>Provisioning Vapi assistant + buying Twilio number… ~20-30 seconds.';
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Provisioning…";
+
+  const body = {
+    key: getKey(),
+    businessName: document.getElementById("businessName").value.trim(),
+    ownerName: document.getElementById("ownerName").value.trim() || undefined,
+    servicesOffered: document.getElementById("servicesOffered").value.trim(),
+    voicePreference: document.getElementById("voicePreference").value,
+    language: document.getElementById("language").value,
+    transferNumber: document.getElementById("transferNumber").value.trim() || undefined,
+    areaCode: document.getElementById("areaCode").value.trim() || undefined,
+    ttlHours: parseInt(document.getElementById("ttlHours").value, 10) || 48,
+    creatorEmail: document.getElementById("creatorEmail").value.trim() || undefined,
+  };
+
+  try {
+    const r = await fetch(`${SUPABASE}/functions/v1/create-demo`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await r.json();
+    if (!r.ok || !data.success) {
+      status.className = "status error show";
+      status.textContent = data.error || `Failed: ${r.status}`;
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Spin Up Demo →";
+      return;
+    }
+
+    status.classList.remove("show");
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Spin Up Demo →";
+
+    const phone = data.phoneNumber;
+    const formatted = formatPhone(phone);
+    document.getElementById("resultPhone").textContent = formatted;
+    const expiresIn = Math.round((new Date(data.expiresAt).getTime() - Date.now()) / (60 * 60 * 1000));
+    document.getElementById("resultExpiry").textContent = `Expires in ${expiresIn} hours · ${new Date(data.expiresAt).toLocaleString()}`;
+    document.getElementById("dialLink").href = `tel:${phone}`;
+    document.getElementById("copyBtn").onclick = () => {
+      navigator.clipboard.writeText(phone);
+      const b = document.getElementById("copyBtn");
+      const old = b.textContent; b.textContent = "✓ Copied"; setTimeout(() => b.textContent = old, 1500);
+    };
+    result.classList.add("show");
+    loadDemos();
+  } catch (e) {
+    status.className = "status error show";
+    status.textContent = "Network error. Try again.";
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Spin Up Demo →";
+  }
+});
+
+document.getElementById("newBtn").addEventListener("click", () => {
+  document.getElementById("result").classList.remove("show");
+  document.getElementById("demoForm").reset();
+  document.getElementById("voicePreference").value = "professional_female";
+  document.getElementById("language").value = "english";
+  document.getElementById("ttlHours").value = "48";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+// ---- list demos ----
+async function loadDemos() {
+  const list = document.getElementById("demoList");
+  list.innerHTML = '<div class="empty-state"><span class="spinner"></span></div>';
+  try {
+    const r = await fetch(`${SUPABASE}/functions/v1/list-demos`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: getKey() }),
+    });
+    const data = await r.json();
+    if (!data.success || !data.demos.length) {
+      list.innerHTML = '<div class="empty-state">No active demos.<br>Create one →</div>';
+      return;
+    }
+    list.innerHTML = "";
+    for (const d of data.demos) {
+      const card = document.createElement("div");
+      card.className = "demo-card";
+      const expiresIn = d.expiresAt ? Math.max(0, Math.round((new Date(d.expiresAt).getTime() - Date.now()) / (60 * 60 * 1000))) : "?";
+      card.innerHTML = `
+        <div class="demo-card-name">${escapeHtml(d.businessName || "Unnamed")}</div>
+        <div class="demo-card-phone">${formatPhone(d.phoneNumber)}</div>
+        <div class="demo-card-meta">
+          <span>Expires in ${expiresIn}h</span>
+          <button class="btn-bad" data-id="${d.id}">Kill</button>
+        </div>
+      `;
+      card.querySelector(".btn-bad").addEventListener("click", () => killDemo(d.id, d.businessName));
+      list.appendChild(card);
+    }
+  } catch (e) {
+    list.innerHTML = '<div class="empty-state">Failed to load.</div>';
+  }
+}
+
+async function killDemo(id, name) {
+  if (!confirm(`Kill demo for "${name}"? Number will be released and assistant deleted.`)) return;
+  try {
+    await fetch(`${SUPABASE}/functions/v1/delete-demo`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: getKey(), demoId: id }),
+    });
+    loadDemos();
+  } catch (_) { alert("Failed to kill demo."); }
+}
+
+document.getElementById("refreshBtn").addEventListener("click", loadDemos);
+
+// ---- helpers ----
+function formatPhone(p) {
+  if (!p) return "—";
+  const d = p.replace(/\D/g, "");
+  if (d.length === 11 && d.startsWith("1")) return `(${d.slice(1,4)}) ${d.slice(4,7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`;
+  return p;
+}
+function escapeHtml(s) { return (s||"").replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>
